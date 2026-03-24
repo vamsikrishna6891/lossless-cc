@@ -63,6 +63,8 @@ CREATE INDEX IF NOT EXISTS idx_messages_project ON messages(project_path);
 CREATE INDEX IF NOT EXISTS idx_messages_type ON messages(type);
 CREATE INDEX IF NOT EXISTS idx_messages_timestamp ON messages(timestamp);
 CREATE INDEX IF NOT EXISTS idx_summaries_session ON summaries(session_id);
+CREATE INDEX IF NOT EXISTS idx_messages_project_timestamp ON messages(project_path, timestamp);
+CREATE INDEX IF NOT EXISTS idx_summaries_project_created ON summaries(project_path, created_at);
 """
 
 

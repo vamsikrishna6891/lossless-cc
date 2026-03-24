@@ -239,42 +239,56 @@ def hook_compact():
 
 @cli.command("hook-start")
 def hook_start():
-    """SessionStart hook handler. Injects prior session context."""
-    data = ingest_from_hook_stdin()
-    transcript_path = data.get("transcript_path")
-    if not transcript_path:
-        return
+    """SessionStart hook handler. Injects prior session context. Fail-open: never blocks startup."""
+    try:
+        data = ingest_from_hook_stdin()
+        transcript_path = data.get("transcript_path")
+        if not transcript_path:
+            return
 
-    conn = init_db()
-    from .ingest import extract_project_path
+        conn = init_db()
+        conn.execute("PRAGMA busy_timeout = 2000")
+        from .ingest import extract_project_path
 
-    project = extract_project_path(transcript_path)
-    total = get_stats(conn)
+        project = extract_project_path(transcript_path)
 
-    if total["total_messages"] == 0:
+        # Only fetch last 24h of summaries for this project
+        summaries = conn.execute(
+            """SELECT summary_text, created_at FROM summaries
+               WHERE project_path = ?
+               AND created_at >= datetime('now', '-1 day')
+               ORDER BY created_at DESC LIMIT 3""",
+            (project,),
+        ).fetchall()
+
+        # Last 24h session count for this project
+        recent = conn.execute(
+            """SELECT COUNT(DISTINCT session_id) as sessions, COUNT(*) as messages
+               FROM messages
+               WHERE project_path = ?
+               AND timestamp >= datetime('now', '-1 day')""",
+            (project,),
+        ).fetchone()
+
         conn.close()
-        return
 
-    # Check for recent summaries from this project
-    summaries = conn.execute(
-        """SELECT summary_text, created_at FROM summaries
-           WHERE project_path = ?
-           ORDER BY created_at DESC LIMIT 3""",
-        (project,),
-    ).fetchall()
+        if recent["messages"] == 0 and not summaries:
+            return
 
-    parts = [
-        f"[lossless-cc] {total['total_messages']} messages across "
-        f"{total['total_sessions']} sessions in database."
-    ]
+        parts = [
+            f"[lossless-cc] Last 24h: {recent['messages']} messages across "
+            f"{recent['sessions']} sessions."
+        ]
 
-    if summaries:
-        parts.append("Recent context summaries:")
-        for s in summaries:
-            parts.append(f"\n--- Summary ({s['created_at']}) ---")
-            parts.append(s["summary_text"])
+        if summaries:
+            parts.append("Recent context summaries:")
+            for s in summaries:
+                parts.append(f"\n--- Summary ({s['created_at']}) ---")
+                parts.append(s["summary_text"])
 
-    parts.append("\nUse `lossless-cc recall <query>` or `lossless-cc grep <query>` to search history.")
+        parts.append("\nUse `lossless-cc recall <query>` or `lossless-cc grep <query>` to search full history.")
 
-    click.echo("\n".join(parts))
-    conn.close()
+        click.echo("\n".join(parts))
+    except Exception:
+        # Fail open: never block Claude Code startup
+        pass
