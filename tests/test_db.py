@@ -121,3 +121,18 @@ def test_get_stats(db, sample_message):
     assert s["total_projects"] == 1
     assert s["total_summaries"] == 0
     assert s["by_type"]["user"] == 1
+
+
+def test_search_empty_query(db, sample_message):
+    insert_message(db, sample_message)
+    db.commit()
+    results = search_messages(db, "")
+    assert results == []
+
+
+def test_search_special_characters(db, sample_message):
+    insert_message(db, sample_message)
+    db.commit()
+    for query in ["test()", "let's", "C++", "NOT test", "foo*bar"]:
+        results = search_messages(db, query)
+        assert isinstance(results, list)

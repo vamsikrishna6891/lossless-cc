@@ -105,6 +105,6 @@ def test_search_after_ingest(db):
 
 def test_search_decision(db):
     ingest_session(db, str(FIXTURE_PATH))
-    results = search_messages(db, '"row-level security"')
+    results = search_messages(db, 'row-level security')
     assert len(results) == 1
     assert "multi-tenant" in results[0]["content"]

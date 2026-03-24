@@ -129,19 +129,38 @@ def insert_message(conn: sqlite3.Connection, msg: dict) -> None:
     )
 
 
+def _sanitize_fts5_query(query: str) -> str:
+    """Sanitize a user query for FTS5 MATCH.
+
+    Wraps each token in double quotes so special characters
+    (parentheses, +, ', etc.) are treated as literals, not FTS5 operators.
+    Returns empty string if there are no searchable tokens.
+    """
+    query = query.strip()
+    if not query:
+        return ""
+    tokens = query.split()
+    quoted = ['"' + tok.replace('"', '""') + '"' for tok in tokens]
+    return " ".join(quoted)
+
+
 def search_messages(
     conn: sqlite3.Connection,
     query: str,
     project_path: str | None = None,
     limit: int = 20,
 ) -> list[dict]:
+    safe_query = _sanitize_fts5_query(query)
+    if not safe_query:
+        return []
+
     if project_path:
         rows = conn.execute(
             """SELECT m.* FROM messages m
                JOIN messages_fts f ON m.id = f.rowid
                WHERE messages_fts MATCH ? AND m.project_path = ?
                ORDER BY m.timestamp DESC LIMIT ?""",
-            (query, project_path, limit),
+            (safe_query, project_path, limit),
         ).fetchall()
     else:
         rows = conn.execute(
@@ -149,7 +168,7 @@ def search_messages(
                JOIN messages_fts f ON m.id = f.rowid
                WHERE messages_fts MATCH ?
                ORDER BY m.timestamp DESC LIMIT ?""",
-            (query, limit),
+            (safe_query, limit),
         ).fetchall()
     return [dict(r) for r in rows]
 
