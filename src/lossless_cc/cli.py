@@ -57,12 +57,13 @@ def recall(query, project, limit):
     """Search summaries first, then raw messages. Optimized for agent use."""
     conn = init_db()
 
-    # Search summaries first
+    # Search summaries first (escape LIKE wildcards in user input)
+    escaped_query = query.replace("%", "\\%").replace("_", "\\_")
     summaries = conn.execute(
         """SELECT * FROM summaries
-           WHERE summary_text LIKE ?
+           WHERE summary_text LIKE ? ESCAPE '\\'
            ORDER BY created_at DESC LIMIT ?""",
-        (f"%{query}%", limit),
+        (f"%{escaped_query}%", limit),
     ).fetchall()
 
     if summaries:
@@ -161,10 +162,10 @@ def ingest_all(claude_dir):
             files += 1
             total += count
 
-    conn.close()
-
-    s = get_stats(init_db())
     click.echo(f"Ingested {total} new messages from {files} files.")
+
+    s = get_stats(conn)
+    conn.close()
     click.echo(f"Total: {s['total_messages']} messages across {s['total_sessions']} sessions.")
 
 

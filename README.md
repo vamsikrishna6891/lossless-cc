@@ -57,35 +57,23 @@ Add to your `~/.claude/settings.json` to make it fully automatic:
   "hooks": {
     "Stop": [
       {
-        "hooks": [
-          {
-            "type": "command",
-            "command": "lossless-cc hook-stop",
-            "timeout": 5
-          }
-        ]
+        "type": "command",
+        "command": "lossless-cc hook-stop",
+        "timeout": 5
       }
     ],
     "PreCompact": [
       {
-        "hooks": [
-          {
-            "type": "command",
-            "command": "lossless-cc hook-compact",
-            "timeout": 10
-          }
-        ]
+        "type": "command",
+        "command": "lossless-cc hook-compact",
+        "timeout": 10
       }
     ],
     "SessionStart": [
       {
-        "hooks": [
-          {
-            "type": "command",
-            "command": "lossless-cc hook-start",
-            "timeout": 5
-          }
-        ]
+        "type": "command",
+        "command": "lossless-cc hook-start",
+        "timeout": 5
       }
     ]
   }

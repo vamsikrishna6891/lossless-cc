@@ -32,6 +32,12 @@ def parse_message(line_data: dict, project_path: str) -> dict | None:
     role = message.get("role")
     content_blocks = message.get("content", [])
 
+    # Handle content as a plain string (some API responses use this format)
+    if isinstance(content_blocks, str):
+        content_blocks = [content_blocks]
+    if not isinstance(content_blocks, list):
+        content_blocks = []
+
     content_text = ""
     is_tool_use = False
     tool_name = None
@@ -95,7 +101,10 @@ def ingest_session(conn, jsonl_path: str) -> int:
     if not first_line:
         return 0
 
-    first_data = json.loads(first_line)
+    try:
+        first_data = json.loads(first_line)
+    except json.JSONDecodeError:
+        return 0
     session_id = first_data.get("sessionId", path.stem)
 
     last_offset = get_ingest_state(conn, session_id)
